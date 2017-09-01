@@ -32,6 +32,7 @@ gem 'jbuilder', '~> 2.5'
 
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development
+gem 'curb'
 
 group :development, :test do
   gem 'rspec-rails'
@@ -39,10 +40,11 @@ group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem 'byebug', platforms: [:mri, :mingw, :x64_mingw]
   # Adds support for Capybara system testing and selenium driver
-  gem 'capybara', '~> 2.13'
-  gem 'capybara-webkit'
+  #gem 'capybara', '~> 2.15'
+  gem 'capybara', '< 2.15.0'
+  #gem 'selenium-webdriver'
+  gem 'capybara-webkit', git: "https://github.com/thoughtbot/capybara-webkit.git"
   gem 'database_cleaner'
-
 end
 
 group :development do
