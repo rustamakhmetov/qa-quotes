@@ -1,34 +1,28 @@
 require 'acceptance/acceptance_helper'
 require 'curb'
 
-feature 'Accept answer', %q{
-  In order to be able to accept right answer solved problem
-  As an author of question
-  I want to be able to accept an answer to the question
-} do
+class Hash
+  def without(*keys)
+    dup.without!(*keys)
+  end
+
+  def without!(*keys)
+    reject! { |key| keys.include?(key) }
+  end
+end
+
+
+feature 'Compare tables' do
   describe 'Compare local and remote tables' do
-
-
-    # given(:question) { create(:question) }
-    # given(:user) { question.user  }
-    # given!(:other_user) { create(:user) }
-    # given!(:answer) { create(:answer, question: question, user: other_user, body: "Answer [accept]") }
-    # given!(:answer2) { create(:answer, question: question, user: other_user) }
-    # given!(:answer3) { create(:answer, question: question, user: other_user, accept: true) }
-    #
-    # before do
-    #   sign_in user
-    #   visit question_path(question)
-    # end
-    # before do
-    #   Capybara.current_driver = :selenium
-    # end
-
-    #Capybara.run_server = false
     subject { Capybara::Session.new(:webkit, @app) }
     after { subject.reset! }
 
     before(:all) do
+      # fill local table
+      Service.parse.each do |product|
+        Product.create(product)
+      end
+
       @app = lambda do |env|
         url = 'http://tereshkova.test.kavichki.com'
         http = Curl.get(url)
@@ -41,41 +35,58 @@ feature 'Accept answer', %q{
     end
 
 
-    scenario 'see remote table', js: true do
-
-      # url = 'http://tereshkova.test.kavichki.com'
-      # http = Curl.get(url)
-      # body = http.body_str.force_encoding("UTF-8")
-      # a=1
-      #
-      # html = open(url)
-      # doc = Nokogiri::HTML(html, nil, 'utf-8')
-      #
-      # Capybara.default_selector = :css
-
-      # class Japan < Rack::Proxy
-      #   def rewrite_env(env)
-      #     env['HTTP_HOST'] = 'l-tike.com'
-      #     env
-      #   end
-      # end
-      #
-      # session = Capybara::Session.new(:rack_test, Japan.new)
-      # session.visit 'http://tereshkova.test.kavichki.com'
-      # puts session.body
-      # subject.visit "http://tereshkova.test.kavichki.com"
-      # return
-
+    scenario 'compare tables without changes', js: true do
       subject.visit "/"
-      text = subject.text
-      text2 = page.text.encode("utf-8")
-      #text.encode( 'UTF-8', 'Windows-1252')
-      #doc = Nokogiri::HTML(page.body, nil, 'utf-8')
+      page = subject.body
       expect(page).to have_content("Список покупок")
-      #page.first(:xpath, id).text.encode('iso-8859-15')
-      # within '.answers' do
-      #   expect(page).to have_link('Accept')
-      # end
+
+      results = []
+      subject.all(:css, 'table#tbl tbody tr').each do |row|
+        td = row.all(:css, 'td')
+        name = td[0].text
+        next unless name
+        data = {name: name,
+                amount: td[1].text.to_i,
+                price: td[2].text.to_f}
+        results << data
+      end
+      products = Product.all.map{|x| x.attributes.without("id", "created_at", "updated_at") }
+      products.each do |e|
+        e["price"] = e["price"].to_f
+        e.symbolize_keys!
+      end
+      products.sort_by! {|e| e["name"] }
+      results.sort_by! {|e| e["name"] }
+
+      expect(HashDiff.best_diff(products, results)).to eq []
+    end
+
+    fscenario "add a new item into the remote table", js: true do
+      subject.visit "/"
+      page = subject.body
+      expect(page).to have_content("Список покупок")
+      subject.click_on "Добавить новое"
+      subject.fill_in "Название", with: "New item"
+      subject.fill_in "Количество", with: 5
+      subject.fill_in "стоимость", with: 55.5
+      subject.click_on "Добавить"
+      products = get_products(subject)
+      expect(products.count).to eq 5 # Failed
+      #subject.save_and_open_page
     end
   end
+end
+
+def get_products(subj)
+  results = []
+  subj.all(:css, 'table#tbl tbody tr').each do |row|
+    td = row.all(:css, 'td')
+    name = td[0].text
+    next unless name
+    data = {name: name,
+            amount: td[1].text.to_i,
+            price: td[2].text.to_f}
+    results << data
+  end
+  results
 end
