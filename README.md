@@ -5,6 +5,7 @@
 **Порядок настройки проекта**
 
 _В папке проекта:_
+
 0. rvm use 2.4.0@qa-quotes --create
 1. gem install bundle
 2. bundle install
