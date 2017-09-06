@@ -1,24 +1,16 @@
 # README
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Пример тестирования внешнего сайта с применением Rspec, Capybara.
 
-Things you may want to cover:
+**Порядок настройки проекта**
 
-* Ruby version
+_В папке проекта:_
+0. rvm use 2.4.0@qa-quotes --create
+1. gem install bundle
+2. bundle install
+3. config/database.yml.sample переименовать в config/database.yml, указать в нем параметры подключения к серверу Postgresql (секция: default)
+4. rake db:create
+5. rake db:migrate 
+6. запускаем "rspec spec/", ждем выполнения
 
-* System dependencies
-
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+Для отключения показа окна браузера при тестировании, необходимо в файле "spec/acceptance/acceptance_helper.rb" закомментировать строки с 12 по 15.
