@@ -1,14 +1,19 @@
 require 'rails_helper'
 
 Capybara.server = :puma
-Capybara.javascript_driver = :webkit
-#Capybara.javascript_driver = :selenium
+#Capybara.javascript_driver = :webkit
+Capybara.default_driver = :selenium
+Capybara.javascript_driver = :selenium_chrome
 Capybara.default_max_wait_time = 5
 
 RSpec.configure do |config|
   config.include WaitForAjax, type: :feature
-
   config.use_transactional_fixtures = false
+
+  config.before(:each, type: :feature) do
+    # Note (Mike Coutermarsh): Make browser huge so that no content is hidden during tests
+    Capybara.current_session.driver.browser.manage.window.resize_to(2_500, 2_500)
+  end
 
   config.before(:suite) do
     DatabaseCleaner.clean_with(:truncation)
@@ -36,9 +41,9 @@ RSpec.configure do |config|
   end
 end
 
-Capybara::Webkit.configure do |config|
-  # Enable debug mode. Prints a log of everything the driver is doing.
-  #config.debug = true
-  config.allow_unknown_urls
-  #config.allow_url("tereshkova.test.kavichki.com")
-end
+# Capybara::Webkit.configure do |config|
+#   # Enable debug mode. Prints a log of everything the driver is doing.
+#   #config.debug = true
+#   config.allow_unknown_urls
+#   #config.allow_url("tereshkova.test.kavichki.com")
+# end

@@ -24,7 +24,7 @@ feature 'Compare tables' do
       expect(page).to have_content("Список покупок")
     end
 
-    scenario 'compare tables without changes', js: true do
+    fscenario 'compare tables without changes', js: true do
       results = get_products_site
       products = get_products_db
       expect(diff(products, results)).to eq []
