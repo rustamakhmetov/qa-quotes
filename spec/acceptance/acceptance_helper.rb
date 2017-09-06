@@ -1,7 +1,6 @@
 require 'rails_helper'
 
 Capybara.server = :puma
-#Capybara.javascript_driver = :webkit
 Capybara.default_driver = :selenium
 Capybara.javascript_driver = :selenium_chrome
 Capybara.default_max_wait_time = 5
@@ -40,10 +39,3 @@ RSpec.configure do |config|
     DatabaseCleaner.clean
   end
 end
-
-# Capybara::Webkit.configure do |config|
-#   # Enable debug mode. Prints a log of everything the driver is doing.
-#   #config.debug = true
-#   config.allow_unknown_urls
-#   #config.allow_url("tereshkova.test.kavichki.com")
-# end
