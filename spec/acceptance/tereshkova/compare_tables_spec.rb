@@ -14,72 +14,108 @@ end
 
 feature 'Compare tables' do
   describe 'Compare local and remote tables' do
-    subject { Capybara::Session.new(:webkit, @app) }
-    after { subject.reset! }
-
-    before(:all) do
+    before do
       # fill local table
       Service.parse.each do |product|
         Product.create(product)
       end
 
-      @app = lambda do |env|
-        url = 'http://tereshkova.test.kavichki.com'
-        http = Curl.get(url)
-        body = http.body_str.force_encoding("UTF-8")
-        body["<head>"]='<head><meta charset="utf-8">'
-        [200,
-         { 'Content-Type' => 'text/html', 'Content-Length' => body.length.to_s },
-         [body]]
-      end
+      visit "http://tereshkova.test.kavichki.com"
+      expect(page).to have_content("Список покупок")
     end
-
 
     scenario 'compare tables without changes', js: true do
-      subject.visit "/"
-      page = subject.body
-      expect(page).to have_content("Список покупок")
-
-      results = []
-      subject.all(:css, 'table#tbl tbody tr').each do |row|
-        td = row.all(:css, 'td')
-        name = td[0].text
-        next unless name
-        data = {name: name,
-                amount: td[1].text.to_i,
-                price: td[2].text.to_f}
-        results << data
-      end
-      products = Product.all.map{|x| x.attributes.without("id", "created_at", "updated_at") }
-      products.each do |e|
-        e["price"] = e["price"].to_f
-        e.symbolize_keys!
-      end
-      products.sort_by! {|e| e["name"] }
-      results.sort_by! {|e| e["name"] }
-
-      expect(HashDiff.best_diff(products, results)).to eq []
+      results = get_products_site
+      products = get_products_db
+      expect(diff(products, results)).to eq []
     end
 
-    fscenario "add a new item into the remote table", js: true do
-      subject.visit "/"
-      page = subject.body
-      expect(page).to have_content("Список покупок")
-      subject.click_on "Добавить новое"
-      subject.fill_in "Название", with: "New item"
-      subject.fill_in "Количество", with: 5
-      subject.fill_in "стоимость", with: 55.5
-      subject.click_on "Добавить"
-      products = get_products(subject)
-      expect(products.count).to eq 5 # Failed
-      #subject.save_and_open_page
+    scenario "add a new item into the remote table", js: true do
+      item = {name: "New item", amount: 3, price: 55.5}
+      add_new_item(item)
+
+      results = get_products_site
+      expect(results.count).to eq 5
+      within "tbody tr:last-child" do
+        within "td:nth-child(1)" do
+          expect(page).to have_content(item[:name])
+        end
+        within "td:nth-child(2)" do
+          expect(page).to have_content(item[:amount])
+        end
+        within "td:nth-child(3)" do
+          expect(page).to have_content(item[:price])
+        end
+      end
+    end
+
+    scenario "compare tables with changes", js: true do
+      item = {name: "New item", amount: 3, price: 55.5}
+      add_new_item(item)
+
+      results = get_products_site
+      products = get_products_db
+      expect(diff(products, results)).to eq [["+", "[#{results.count-1}]", item]]
+    end
+
+    scenario "delete existing rows", js: true do
+      results = get_products_site
+      expect(results.count).to be > 0
+      item = results[0]
+      within("table#tbl tbody tr:nth-child(1)") do
+        within("td:nth-child(1)") do
+          expect(page).to have_content(item[:name])
+        end
+        click_on "Удалить"
+      end
+      results.delete_at(0)
+      new_results = get_products_site
+      expect(diff(results, new_results)).to eq []
+    end
+
+    scenario "deleting a newly created record", js: true do
+      item = {name: "New item", amount: 3, price: 55.5}
+      add_new_item(item)
+      results = get_products_site
+      within "tbody tr:last-child" do
+        within("td:nth-child(1)") do
+          expect(page).to have_content(item[:name])
+        end
+        click_on "Удалить"
+      end
+      new_results = get_products_site
+      expect(diff(results, new_results)).to eq [["-", "[#{results.count-1}]", item]]
+    end
+
+    scenario "reset remote table after her changed", js: true do
+      item = {name: "New item", amount: 3, price: 55.5}
+      results = get_products_site
+      add_new_item(item)
+      click_on "Сбросить"
+      new_results = get_products_site
+      expect(diff(results, new_results)).to eq []
     end
   end
+
 end
 
-def get_products(subj)
+def diff(list1, list2)
+  HashDiff.best_diff(list1.sort_by {|e| e["name"] },
+                     list2.sort_by {|e| e["name"] })
+end
+
+def get_products_db
+  products = Product.all.map{|x| x.attributes.without("id", "created_at", "updated_at") }
+  products.each do |e|
+    e["price"] = e["price"].to_f
+    e.symbolize_keys!
+  end
+  products
+end
+
+def get_products_site
   results = []
-  subj.all(:css, 'table#tbl tbody tr').each do |row|
+  page.all(:css, 'table#tbl tbody tr').each do |row|
     td = row.all(:css, 'td')
     name = td[0].text
     next unless name
@@ -89,4 +125,12 @@ def get_products(subj)
     results << data
   end
   results
+end
+
+def add_new_item(data)
+  click_on "Добавить новое"
+  fill_in "Название", with: data[:name]
+  fill_in "Количество", with: data[:amount]
+  fill_in "стоимость", with: data[:price]
+  click_on "Добавить"
 end
